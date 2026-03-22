@@ -1,49 +1,66 @@
-# Sales Ai
+# DealSearch AI
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg) ![License](https://img.shields.io/badge/License-MIT-green.svg) ![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)
 
-## 📖 Description
+## Credits
 
-An AI app to find real-time discounts/deals/sales prices from various online markets around the world. Will be modified to use the latest ChatGPT API and dynamically capture user trends. This is a work in progress.
+Original project by [Bobur Umurzokov](https://github.com/Boburmirzo) — [chatgpt-api-python-sales](https://github.com/Boburmirzo/chatgpt-api-python-sales).
 
-## ✨ Features
+This fork significantly reworks the original into a deployable web application.
 
-- Real-time price monitoring
-- AI-powered deal detection
-- Multi-market price comparison
-- User trend analysis
-- Automated discount alerts
-- Price history tracking
+## What was added
 
-## 🛠️ Tech Stack
+- **FastAPI backend** replacing the original Pathway streaming pipeline
+- **In-memory semantic search** using `sentence-transformers` (no Pinecone/vector DB needed)
+- **Natural language deal search** — type "cheap headphones under $50" and get ranked results
+- **AI-powered summaries** via Groq (free Llama 3.1) — degrades gracefully without API key
+- **Product card UI** with savings %, ratings, Prime badge, filter chips
+- **Full frontend** (`frontend/index.html`) — hero search, deal grid, AI summary banner
+- **Railway deployment config** (`Procfile` + `railway.json`)
+- **13 passing tests** covering data layer, search, filters, and API endpoints
+- **Bug fix** in `_record_to_deal` — operator precedence error caused `savings_pct` to always return 0
 
-- **Primary Language:** Python
-- **Framework:** Ai/Ml
-- **Additional Tools:** N/A
+## Description
 
-## 🚀 Installation
+Search Amazon deals in plain English. Returns ranked product cards with prices, savings %, ratings, and an AI-generated summary. Works with zero API keys using seed data.
+
+## Tech Stack
+
+- **Backend:** FastAPI + uvicorn
+- **Search:** sentence-transformers (all-MiniLM-L6-v2) + numpy cosine similarity
+- **AI Summaries:** Groq (free, optional)
+- **Data:** Real Amazon deals from seed JSONL files
+- **Deploy:** Railway
+
+## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/shivajipanam/sales-ai.git
 cd sales-ai
 
-# Install dependencies
-pip install -r requirements.txt
+pip install -r app_requirements.txt
 
-# Set up environment variables
 cp .env.example .env
-# Add your API keys to .env
+# Optionally add GROQ_API_KEY for AI summaries
 
-# Start the application
-docker-compose up -d
-``````bash
-# Start the sales AI system
-python main.py
-
-# Monitor specific products
-python monitor.py --product "laptop" --price 1000
-
-# Get trending deals
-python trends.py --category "electronics"
+uvicorn server:app --reload
 ```
+
+Open `http://localhost:8000` in your browser.
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | Optional | Enables AI summaries (free at console.groq.com) |
+| `RAINFOREST_API_KEY` | Optional | Enables live Amazon deal refresh (paid) |
+
+## Running Tests
+
+```bash
+pytest tests/ -v
+```
+
+## License
+
+MIT
