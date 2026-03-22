@@ -35,17 +35,15 @@ def ai_summary(query: str, deals: list[Deal]) -> str:
     for the given query. Returns plain text.
     """
     if not deals:
-        return "No matching deals found. Try a broader search term."
+        return "No matching deals found. Try a broader search term like 'laptop', 'headphones', or 'gaming'."
 
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        # Graceful degradation — return a basic summary without AI
         best = deals[0]
+        others = f" and {len(deals) - 1} more deals" if len(deals) > 1 else ""
         return (
-            f"Found {len(deals)} deals matching '{query}'. "
-            f"Top pick: {best.title} at ${best.deal_price:.2f} "
-            f"({best.savings_pct:.0f}% off). "
-            f"Set GROQ_API_KEY for AI-powered summaries."
+            f"Found {len(deals)} deal{'s' if len(deals) > 1 else ''} matching '{query}'. "
+            f"Top pick: {best.title} at ${best.deal_price:.2f} ({best.savings_pct:.0f}% off){others}."
         )
 
     deals_text = _deals_to_text(deals[:8])  # top 8 for context window

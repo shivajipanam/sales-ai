@@ -108,7 +108,7 @@ def load_all_deals() -> int:
     global _deals
 
     all_deals: list[Deal] = []
-    for fname in ["rainforest_discounts.jsonl", "csv_discounts.jsonl"]:
+    for fname in ["rainforest_discounts.jsonl", "csv_discounts.jsonl", "mock_discounts.jsonl"]:
         all_deals.extend(load_from_jsonl(_DATA_DIR / fname))
 
     # Deduplicate by deal_id
@@ -166,7 +166,7 @@ def search_deals(
             filtered_scores[i] = -1
 
     top_indices = np.argsort(filtered_scores)[::-1][:top_k]
-    return [_deals[i] for i in top_indices if filtered_scores[i] > -1]
+    return [_deals[i] for i in top_indices if filtered_scores[i] > 0.01]
 
 
 def get_all_deals() -> list[Deal]:
