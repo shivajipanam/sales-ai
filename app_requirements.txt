@@ -3,8 +3,8 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 pydantic==2.12.5
 
-# AI / embeddings
-sentence-transformers==5.3.0
+# AI / search
+scikit-learn==1.6.1
 groq==1.1.1
 numpy==2.2.6
 

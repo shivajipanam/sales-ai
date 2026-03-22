@@ -2,8 +2,7 @@
 Deals data layer.
 - Loads deals from existing JSONL files (seed data — real Amazon deals)
 - Optionally refreshes from Rainforest API if RAINFOREST_API_KEY is set
-- Builds in-memory embedding index with sentence-transformers
-  (no Pinecone needed — dataset is small enough for numpy cosine similarity)
+- Builds in-memory TF-IDF index with scikit-learn (lightweight, no PyTorch needed)
 """
 import ast
 import json
@@ -12,28 +11,21 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from app.models import Deal
 
-_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 _DATA_DIR = Path(__file__).parent.parent / "examples" / "data"
 
 # In-memory store
 _deals: list[Deal] = []
-_embeddings: Optional[np.ndarray] = None  # shape (N, 384)
-_model: Optional[SentenceTransformer] = None
-
-
-def _get_model() -> SentenceTransformer:
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(_EMBEDDING_MODEL)
-    return _model
+_vectorizer: Optional[TfidfVectorizer] = None
+_tfidf_matrix = None  # sparse matrix (N, vocab)
 
 
 def _deal_text(d: Deal) -> str:
-    """Text representation used for embedding."""
+    """Text representation used for TF-IDF indexing."""
     return f"{d.title}. {d.description}. Price: ${d.deal_price:.2f}. Save {d.savings_pct:.0f}%."
 
 
@@ -104,15 +96,16 @@ def load_from_jsonl(path: Path) -> list[Deal]:
     return deals
 
 
-def build_index(deals: list[Deal]) -> np.ndarray:
-    model = _get_model()
+def build_index(deals: list[Deal]) -> None:
+    global _vectorizer, _tfidf_matrix
     texts = [_deal_text(d) for d in deals]
-    return model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+    _vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=20000)
+    _tfidf_matrix = _vectorizer.fit_transform(texts)
 
 
 def load_all_deals() -> int:
-    """Load all deals from seed JSONL files and build embedding index."""
-    global _deals, _embeddings
+    """Load all deals from seed JSONL files and build TF-IDF index."""
+    global _deals
 
     all_deals: list[Deal] = []
     for fname in ["rainforest_discounts.jsonl", "csv_discounts.jsonl"]:
@@ -130,7 +123,7 @@ def load_all_deals() -> int:
 
     _deals = unique
     if _deals:
-        _embeddings = build_index(_deals)
+        build_index(_deals)
 
     return len(_deals)
 
@@ -155,18 +148,16 @@ def search_deals(
     top_k: int = 12,
 ) -> list[Deal]:
     """
-    Embed the query, cosine-similarity search against deal index,
+    TF-IDF cosine similarity search against deal index,
     then apply price/discount filters. Returns top_k results.
     """
-    if not _deals:
+    if not _deals or _vectorizer is None:
         return []
 
-    model = _get_model()
-    q_vec = model.encode([query], normalize_embeddings=True)[0]  # shape (384,)
+    q_vec = _vectorizer.transform([query])
+    scores = cosine_similarity(q_vec, _tfidf_matrix).flatten()
 
-    scores = _embeddings @ q_vec  # shape (N,) — cosine similarity since both normalised
-
-    # Apply filters first (set score to -1 to exclude)
+    # Apply filters (set score to -1 to exclude)
     filtered_scores = scores.copy()
     for i, deal in enumerate(_deals):
         if max_price is not None and deal.deal_price > max_price:
